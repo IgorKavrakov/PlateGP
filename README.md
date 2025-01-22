@@ -8,7 +8,6 @@ Cite: Kavrakov, I., Tondo. G. R., and Morgenthal, G. 2024. Stochastic Inference 
 
 ```
 @article{Kavrakov2025Plates,
-title = {Stochastic Inference of Plate Bending from Heterogeneous Data: Physics-informed Gaussian Processes via Kirchhoff-Love theory},
 author = {Igor Kavrakov  and Gledson Rodrigo Tondo  and Guido Morgenthal },
 title = {Stochastic Inference of Plate Bending from Heterogeneous Data: Physics-Informed Gaussian Processes via Kirchhoff–Love Theory},
 journal = {Journal of Engineering Mechanics},
