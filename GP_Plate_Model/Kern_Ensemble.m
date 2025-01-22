@@ -1,5 +1,6 @@
 function [Kern] = Kern_Ensemble(Kernel,BC,nu,x1,x2,y1,y2,hyp,noise)
-% Wrapper function for kernel evaluation
+% Wrapper function for kernel evaluation.
+% Given kernel function and input values, evaluate the covariance matrix
 
 % By Igor Kavrakov
 
@@ -18,11 +19,13 @@ function [Kern] = Kern_Ensemble(Kernel,BC,nu,x1,x2,y1,y2,hyp,noise)
 %  You should have received a copy of the GNU General Public License
 %  along with PlateGP.  If not, see <https://www.gnu.org/licenses/>.
 
-% Copyright (c) Igor Kavrakov, Gledson Rodrigo Tondo, Guido Morgenthal 2024
+% Copyright (c) Igor Kavrakov, Gledson Rodrigo Tondo, Guido Morgenthal 2025
 
-%hyp=exp(hyp);
+% Recover current parameters
 A=hyp(1);L1=hyp(2);L2=hyp(3);D=hyp(4);
-if noise==1 %Identify noise?
+
+%Identify noise?
+if noise==1 
    n=1;
    if ~isempty(x1.w)&&(length(BC.w)~=length(x1.w));      sigma_w=hyp(4+n);  n=n+1; else sigma_w=0;   end
    if ~isempty(x1.Rx)&&(length(BC.Rx)~=length(x1.Rx));   sigma_Rx=hyp(4+n); n=n+1; else sigma_Rx=0;  end
@@ -40,10 +43,12 @@ else
    sigma_w=0;sigma_Rx=0;sigma_Ry=0;sigma_Kx=0;sigma_Ky=0;sigma_Kxy=0;sigma_p=0;sigma_Qx=0;sigma_Qy=0;sigma_Mx=0;sigma_My=0;sigma_Mxy=0;
 end
 
+% Check for boundary conditions
 if isempty(BC)
    BC.w=[]; BC.Rx=[]; BC.Ry=[]; BC.Kx=[]; BC.Ky=[]; BC.Kxy=[]; BC.p=[]; BC.Mx=[]; BC.My=[]; BC.Mxy=[]; BC.Qx=[]; BC.Qy=[];
 end
-%Get contributions
+
+% Get contributions
 % Row Displacement w
 K_ww    =Kern_Ensemble_Sub(Kernel{1}  ,x1.w,  x2.w',  y1.w,  y2.w',  A,L1,L2,[],[],sigma_w,BC.w);
 K_wRx   =Kern_Ensemble_Sub(Kernel{2}  ,x1.w,  x2.Rx', y1.w,  y2.Rx', A,L1,L2);
@@ -212,6 +217,8 @@ K_MxyMx =Kern_Ensemble_Sub(Kernel{142},x1.Mxy,x2.Mx' ,y1.Mxy,y2.Mx', A,L1,L2,D,n
 K_MxyMy =Kern_Ensemble_Sub(Kernel{143},x1.Mxy,x2.My' ,y1.Mxy,y2.My', A,L1,L2,D,nu);
 K_MxyMxy=Kern_Ensemble_Sub(Kernel{144},x1.Mxy,x2.Mxy',y1.Mxy,y2.Mxy',A,L1,L2,D,nu,sigma_Mxy,BC.Mxy);
 
+
+% Build covariance matrix
 Kern  =[K_ww      K_wRx      K_wRy      K_wKx     K_wKy     K_wKxy    K_wp     K_wQx     K_wQy     K_wMx     K_wMy     K_wMxy;...
         K_Rxw     K_RxRx     K_RxRy     K_RxKx    K_RxKy    K_RxKxy   K_Rxp    K_RxQx    K_RxQy    K_RxMx    K_RxMy    K_RxMxy;...
         K_Ryw     K_RyRx     K_RyRy     K_RyKx    K_RyKy    K_RyKxy   K_Ryp    K_RyQx    K_RyQy    K_RyMx    K_RyMy    K_RyMxy;...

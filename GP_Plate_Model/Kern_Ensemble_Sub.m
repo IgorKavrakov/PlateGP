@@ -1,5 +1,6 @@
 function [Mat] = Kern_Ensemble_Sub(KernFunc,x1,x2,y1,y2,A,L1,L2,D,nu,sigma,BC)
-% Evaluates GP kernels on input data
+% Evaluates GP kernels on input data: defines model based on available
+% input parameters
 
 % By Igor Kavrakov
 
@@ -18,10 +19,11 @@ function [Mat] = Kern_Ensemble_Sub(KernFunc,x1,x2,y1,y2,A,L1,L2,D,nu,sigma,BC)
 %  You should have received a copy of the GNU General Public License
 %  along with PlateGP.  If not, see <https://www.gnu.org/licenses/>.
 
-% Copyright (c) Igor Kavrakov, Gledson Rodrigo Tondo, Guido Morgenthal 2024
+% Copyright (c) Igor Kavrakov, Gledson Rodrigo Tondo, Guido Morgenthal 2025
 
 Mat=[];
 if ~isempty(x1)&&~isempty(x2)
+    % Evaluates basic kernel matrix
     if nargin(KernFunc)==7
         Mat=KernFunc(A,L1,L2,x1,x2,y1,y2);
     elseif nargin(KernFunc)==8
@@ -30,9 +32,13 @@ if ~isempty(x1)&&~isempty(x2)
         Mat=KernFunc(A,D,L1,L2,nu,x1,x2,y1,y2);
     end
     
-    if nargin>10&&sigma~=0%Noise
+    % Adds noise diagonal
+    if nargin>10&&sigma~=0
         NoiseMat=eye(length(x1))*exp(sigma);
-        NoiseMat(BC,BC)=0;                  % Boundary conditions
+        
+        % No noise in BCs
+        NoiseMat(BC,BC)=0; 
+        
         Mat=Mat+NoiseMat;
     end    
 end

@@ -9,7 +9,7 @@ fprintf('Learn Yes BC: (Standard) D/D_true= %2.3f \t\t (MCMC) D/D_true= %2.3f\n'
 
 %%
 for i = 1:2
-    %% Switch between standard and Bayesian optim
+    % Switch between standard and Bayesian optim
     switch i
         case 1 % Standard
             flagMCMC = false;
@@ -169,7 +169,6 @@ function correlMat_doubleplot(dataA, dataB, labels, plotName)
                 xlim([0, 1])
                 ylim([0, 1])
             end
-            % text(0.5, 0.5, sprintf('n=%1.0f, i=%1.0f, j=%1.0f\n%s x %s', n, i, j, labels{j}, labels{i}))
             % Next subplot
             n = n + 1;
         end

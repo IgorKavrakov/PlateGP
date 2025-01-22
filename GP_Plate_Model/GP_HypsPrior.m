@@ -1,7 +1,10 @@
 function LP = GP_HypsPrior(hyps, flagUniformD)
-% Prior model for GP parameters
-
+% Prior model for GP parameters, used during Bayesian optimisation
+% Evaluates the log of the prior distribution for all parameters in the
+% model. Assumes parameters are independent from each other. The specific
+% prior assumptions on the parameters are detailed below.
 % By Gledson Rodrigo Tondo
+
 %%%%%%%%% COPYRIGHT NOTICE %%%%%%%%% 
 %  This file is part of PlateGP.
 %  PlateGP is free software: you can redistribute it and/or modify
@@ -17,7 +20,7 @@ function LP = GP_HypsPrior(hyps, flagUniformD)
 %  You should have received a copy of the GNU General Public License
 %  along with PlateGP.  If not, see <https://www.gnu.org/licenses/>.
 
-% Copyright (c) Igor Kavrakov, Gledson Rodrigo Tondo, Guido Morgenthal 2024
+% Copyright (c) Igor Kavrakov, Gledson Rodrigo Tondo, Guido Morgenthal 2025
     
     % Start log-prior vector
     LP = (-Inf)*ones(size(hyps));    

@@ -144,7 +144,7 @@ function histo_plot(trueD,D_MLEa,histD_a,D_MLEb,histD_b,D_MLEc,histD_c,Plot_Name
     FontAxis=7; FontLabel=9; FontLegend=7;
     f=figure('visible','on');clf(f);set(gcf, 'PaperUnits', 'centimeters');set(gcf, 'PaperSize', [FigWidth FigDepth]);set(gcf, 'PaperPositionMode', 'manual');set(gcf, 'PaperPosition', [0 0 FigWidth FigDepth]);
     [ positions ] = subplot_pos(FigWidth,FigDepth,leftmargin,rightmargin,bottommargin,topmargin,nbx,nby,spacex,spacey);
-    ax=axes('position',positions{1},'Layer','top'); hold on; box on;; grid on;
+    ax=axes('position',positions{1},'Layer','top'); hold on; box on; grid on;
     xPlot = 0.8:0.001:1.2; 
     numBins = 50;    
     h1 = histogram(histD_a./trueD, 'numbins', numBins, 'edgecolor', 'none', 'facecolor' ,Colors(1,:), 'facealpha', 0.3, 'Normalization','pdf');

@@ -1,8 +1,8 @@
 function [hypsOpt,lik,accRatio] = metropolisHastings(hyps, nsamples, logpdf, proprnd, logproppdf, burnin, thin, verbose)
 % Generate samples from a distribution using a Markov Chain
-% Implemented with the Metropolis-Hastings algorithm
-
+% Implemented with the Metropolis-Hastings algorithm 
 % By Gledson Rodrigo Tondo
+
 %%%%%%%%% COPYRIGHT NOTICE %%%%%%%%% 
 %  This file is part of PlateGP.
 %  PlateGP is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@ function [hypsOpt,lik,accRatio] = metropolisHastings(hyps, nsamples, logpdf, pro
 %  You should have received a copy of the GNU General Public License
 %  along with PlateGP.  If not, see <https://www.gnu.org/licenses/>.
 
-% Copyright (c) Igor Kavrakov, Gledson Rodrigo Tondo, Guido Morgenthal 2024
+% Copyright (c) Igor Kavrakov, Gledson Rodrigo Tondo, Guido Morgenthal 2025
 
     warning off
     if ~exist('verbose', 'var'); verbose = true; end

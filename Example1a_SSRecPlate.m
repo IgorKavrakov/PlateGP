@@ -1,9 +1,9 @@
 %% READ-ME
 % Stochastic Inference of Plate Bending from Heterogeneous Data: Physics-informed Gaussian Processes via Kirchhoff-Love theory
 % 
-% Cite: Kavrakov, I., Tondo. G. R., and Morgenthal, G. 2024. Stochastic Inference of Plate Bending from 
+% Cite: Kavrakov, I., Tondo. G. R., and Morgenthal, G. 2025. Stochastic Inference of Plate Bending from 
 % Heterogeneous Data: Physics-informed Gaussian Processes via Kirchhoff-Love theory. 
-% Journal of Engineering Mechanics, XXX, XXX, DOI:XXX.
+% Journal of Engineering Mechanics 151 (4), DOI: 10.1061/JENMDT.EMENG-7558.
 % 
 % PlateGP is a Matlab-based computer code for the inverse problem of obtaining plate stiffness values 
 % from measurement data, and physics-informed forward solutions of plate physical responses. 
@@ -13,7 +13,8 @@
 % while the Example folders contain the details for the analytical flat plate analysis and plots. The details on of 
 % the utilized methods are given in the abovementioned article.
 % 
-% The accepted manuscript can be found on arXiv: https://arxiv.org/abs/2405.12802
+% The accepted manuscript can be found at https://doi.org/10.1061/JENMDT.EMENG-7558. 
+% A preprint is available at arXiv: https://arxiv.org/abs/2405.12802
 % 
 % %%%%%%%%% COPYRIGHT NOTICE %%%%%%%%%
 % 
@@ -28,75 +29,98 @@
 % You should have received a copy of the GNU General Public License along with PlateGP. 
 % If not, see https://www.gnu.org/licenses/.
 % 
-% Copyright (c) Igor Kavrakov, Gledson Rodrigo Tondo, Guido Morgenthal 2024
+% Copyright (c) Igor Kavrakov, Gledson Rodrigo Tondo, Guido Morgenthal 2025
 
 %% Clear and add paths
-clear all; close all; clc;matlabrc;
-addpath(genpath('GP_Plate_Model'));     %Main dir for GP plate bending
-addpath('Example1_SSRecPlate');         %Particular example dir: analytical solutions & plots
+clear; close all; clc; matlabrc;
 
-%% Input
-rng(10); %Reproducability
-%Analytical Plate properties
-AP.nu=0.3;
-AP.q0=1e3; %Sinusoidal load amplitude
-AP.a=1; AP.b=1;   %Plate dim in x and y
-AP.D=2.1*1e8*0.01^3/(12*(1-0.3^2)); %Thickness for learning!
-AP.x=linspace(0,AP.a,5);AP.y=linspace(0,AP.b,5); %Learning coord
-AP.x(1)=0.05*AP.a;AP.x(end)=0.95*AP.a;AP.y(1)=0.05*AP.b;AP.y(end)=0.95*AP.b; %Move outer coords
-SNR=10; %Contaminate analytical data with specific SNR
-AP.SNR.w=SNR; AP.SNR.Kx=SNR; AP.SNR.Ky=SNR; AP.SNR.Kxy=SNR; AP.SNR.p=SNR; 
+% Add paths to model and example
+addpath(genpath('GP_Plate_Model'));
+addpath('Example1_SSRecPlate');
 
-%GP properties
-GP.Par.Stabilizer=eps; %Jitter term.
-GP.Par.noise=1; % Predict noise ?!
-GP.Par.nu=AP.nu;
+% For reproducibility
+rng(10);
+
+%% Analytical plate properties and response
+AP.nu=0.3;                                          % Poisson ratio
+AP.q0=1e3;                                          % Load amplitude
+AP.a=1; AP.b=1;                                     % Plate dimensions in x and y
+AP.D=2.1*1e8*0.01^3/(12*(1-0.3^2));                 % Thickness for learning
+AP.x=linspace(0,AP.a,5); AP.y=linspace(0,AP.b,5);   % Coordinates for training examples
+AP.x(1)=0.05*AP.a;AP.x(end)=0.95*AP.a;              % Move outer coordinates
+AP.y(1)=0.05*AP.b;AP.y(end)=0.95*AP.b; 
+SNR=10;                                             % Contaminate analytical data with specific SNR
+AP.SNR.w=SNR; AP.SNR.Kx=SNR; AP.SNR.Ky=SNR; 
+AP.SNR.Kxy=SNR; AP.SNR.p=SNR; 
+
+% Compute analytical solution
+[AP] = Example1_Analytical_SSRecPlate(AP);
+
+%% Gaussian process properties
+GP.Par.Stabilizer=eps;      % Jitter term.
+GP.Par.noise=1;             % Predict noise
+GP.Par.nu=AP.nu;            % Plate Poisson ratio
 
 %% Optimizer properties
-% Standard optimization
-GP.Par.NEval=-10000; %Maximum function evaluations in training
-% Bayesian model (Gledson Tondo)
-GP.Par.chainLength=1e4; % MCMC chain length
-GP.Par.burnIn = 2.5e3; % Discard initial MCMC steps, get stable part of the chain
-GP.Par.thin = 2; % Discard intermediate steps, reduce dist. autocorrelation
-GP.Par.jumpSize = 2e-2; % Jump size for parameter sampler, relative to initial parameter value
+% Standard optimization: maximum function evaluations in training
+GP.Par.NEval=-10000;
 
-%% Plate analytical solution
-[AP] = Example1_Analytical_SSRecPlate(AP);
+% Bayesian optimization via MCMC
+GP.Par.chainLength=1e4; % MCMC chain length
+GP.Par.burnIn = 2.5e3;  % Discard initial MCMC steps, get stable part of the chain
+GP.Par.thin = 2;        % Discard intermediate steps, reduce dist. autocorrelation
+GP.Par.jumpSize = 2e-2; % Jump size for parameter sampler, relative to initial parameter value
 
 %% Initiate GP Structure
 Type='Init';
-GP = GP_Plate_Pars(GP,Type); %Parser - Initialise data
-GP(2)=GP(1); GP(3)=GP(1); %Save initial structures for 3 cases of learning
+GP = GP_Plate_Pars(GP,Type);    % Parser - Create empty GP framework
+GP(2)=GP(1); GP(3)=GP(1);       % Copy base model for 3 learning examples
 
-%% Displacement-based learning
-%Learning
-Type='Train'; %Training parser
-Prop={'w','p'}; %Properties to get out of the Data structure (in this case, training data - AP)
-GP(1)= GP_Plate_Pars(GP(1),Type,AP,Prop); % Parser - Feed in Data (AP).
+%% Example 1: Displacement-based learning
+% Add training data to the GP model
+Type='Train';       % Training parser
+Prop={'w','p'};     % Properties to add as training data
+GP(1)= GP_Plate_Pars(GP(1),Type,AP,Prop);
 
-hyp=log([1 1 1 exp(1) 10^-3 10^-3])';%Hyperparameters prior (D, A, l_x,l_y, 2 sigma_n);
-fun=@(hyp)GP_Process_Opt(GP(1).Train.X,GP(1).Train.Y,GP(1).Train.f,... % Objective function 
+% Initial value of hyperparameters (D, A, lx, ly, noise)
+hyp=log([1 1 1 exp(1) 10^-3 10^-3])';
+
+% Define training objective function
+fun=@(hyp)GP_Process_Opt(GP(1).Train.X,GP(1).Train.Y,GP(1).Train.f,...
                          GP(1).Kernel,hyp,GP(1).Par.Stabilizer,GP(1).Par.noise);     
-% Standard optimization
-GP(1).Par.hyp= minimize(hyp,fun,GP(1).Par.NEval);%Minimize
-GP(1).Par.D=exp(GP(1).Par.hyp(4));%Flexural stifness
+
+% Standard optimization: gradient descent
+GP(1).Par.hyp= minimize(hyp,fun,GP(1).Par.NEval);
+
+% Get value of plate stiffness
+GP(1).Par.D=exp(GP(1).Par.hyp(4));
 
 % Bayesian optimization
-funMCMC = @(hyp) GP_HypsPrior(hyp) - fun(hyp); % log prior + log lokelihood
-propRnd = @(hyp) normrnd(hyp, repmat(GP(1).Par.jumpSize, size(hyp))); % new parameter proposal
+% Prior model
+funMCMC = @(hyp) GP_HypsPrior(hyp) - fun(hyp);
+% Model for proposal of new parameters
+propRnd = @(hyp) normrnd(hyp, repmat(GP(1).Par.jumpSize, size(hyp)));
+
+% Run Bayesian optimisation
 GP(1).Par.hyp_MCMC = metropolisHastings(hyp, GP(1).Par.chainLength, funMCMC, propRnd, [], ....
                                    GP(1).Par.burnIn, GP(1).Par.thin, true);
-GP(1).Par.D_MCMC = mean(exp(GP(1).Par.hyp_MCMC(:,4)));%mean of flexural stifness
-GP(1).Par.D_MCMC_stdev = std(exp(GP(1).Par.hyp_MCMC(:,4)));%standard deviation of flexural stifness
+                               
+% Get mean and standard deviation of plate stiffness                               
+GP(1).Par.D_MCMC = mean(exp(GP(1).Par.hyp_MCMC(:,4)));
+GP(1).Par.D_MCMC_stdev = std(exp(GP(1).Par.hyp_MCMC(:,4)));
         
 
-%Prediction
-Type='Pred'; %Predition parser
-Prop={'w','Kx','Ky','Kxy','Qx','Qy','Mx','My','Mxy'}; %Properties to predict
+% Prediction
+% Define properties to predict
+Type='Pred'; 
+Prop={'w','Kx','Ky','Kxy','Qx','Qy','Mx','My','Mxy'}; 
+
+% Define locations to predict
 Pred.x=linspace(0,AP.a,21); 
-Pred.y=linspace(0,AP.b,21); %Prediction (inference coord)
-GP(1)= GP_Plate_Pars(GP(1),Type,Pred,Prop); % Parser - Feed in Prediction Data.
+Pred.y=linspace(0,AP.b,21);
+
+% Parser - Feed in prediction data
+GP(1)= GP_Plate_Pars(GP(1),Type,Pred,Prop); 
 
 % Predictions: standard optimizer
 [Pred.Mean,Pred.Var] = GP_Process(GP(1).Train.X,GP(1).Train.Y,GP(1).Train.f,...
@@ -107,61 +131,89 @@ GP(1)= GP_Plate_Pars(GP(1),Type,Pred,Prop); % Parser - Feed in Prediction Data.
 [Pred.Mean_MCMC,Pred.Var_MCMC] = GP_Process(GP(1).Train.X,GP(1).Train.Y,GP(1).Train.f,...
                                   GP(1).Pred.X,GP(1).Pred.Y,...
                                   GP(1).Kernel,GP(1).Par.hyp_MCMC,GP(1).Par.Stabilizer,GP(1).Par.noise);
-                              
-Type='Results'; %Predition parser
-GP(1)= GP_Plate_Pars(GP(1),Type,Pred,Prop); % Parser - Feed in Results Data.
 
-%% Curvature-based learning
-Type='Train'; %Training parser
-Prop={'Kx','Ky','Kxy','p'}; %Properties to get out of the Data structure (in this case, training data - AP)
-GP(2)= GP_Plate_Pars(GP(2),Type,AP,Prop); % Parser - Feed in Data (AP).
+% Parser: store results
+Type='Results';
+GP(1)= GP_Plate_Pars(GP(1),Type,Pred,Prop);
 
-hyp=log([1 1 1 exp(1) 10^-3 10^-3 10^-3 10^-3])';%Hyperparameters prior (D, A, l_x,l_y, 4 sigma_n);
+%% Example 2: Curvature-based learning
+% Add training data to the GP model
+Type='Train';               %Training parser
+Prop={'Kx','Ky','Kxy','p'}; % Properties to add as training data
+GP(2)= GP_Plate_Pars(GP(2),Type,AP,Prop);
+
+% Initial value of hyperparameters (D, A, lx, ly, noise)
+hyp=log([1 1 1 exp(1) 10^-3 10^-3 10^-3 10^-3])';
+
+% Define training objective function
 fun=@(hyp)GP_Process_Opt(GP(2).Train.X,GP(2).Train.Y,GP(2).Train.f,... % Objective function 
                          GP(2).Kernel,hyp,GP(2).Par.Stabilizer,GP(2).Par.noise);    
 
 % Standard optimization
-GP(2).Par.hyp= minimize(hyp,fun,GP(2).Par.NEval);%Minimize
-GP(2).Par.D=exp(GP(2).Par.hyp(4));%Flexural stifness
+GP(2).Par.hyp= minimize(hyp,fun,GP(2).Par.NEval);
+
+% Get value of plate stiffness
+GP(2).Par.D=exp(GP(2).Par.hyp(4));
 
 % Bayesian optimization
-funMCMC = @(hyp) GP_HypsPrior(hyp) - fun(hyp); % log prior + log lokelihood
-propRnd = @(hyp) normrnd(hyp, repmat(GP(2).Par.jumpSize, size(hyp))); % new parameter proposal
+% Prior model
+funMCMC = @(hyp) GP_HypsPrior(hyp) - fun(hyp);
+% Model for proposal of new parameters
+propRnd = @(hyp) normrnd(hyp, repmat(GP(2).Par.jumpSize, size(hyp)));
+
+% Run Bayesian optimisation
 GP(2).Par.hyp_MCMC = metropolisHastings(hyp, GP(2).Par.chainLength, funMCMC, propRnd, [], ....
                                    GP(2).Par.burnIn, GP(2).Par.thin, true);
-GP(2).Par.D_MCMC = mean(exp(GP(2).Par.hyp_MCMC(:,4)));%mean of flexural stifness
-GP(2).Par.D_MCMC_stdev = std(exp(GP(2).Par.hyp_MCMC(:,4)));%standard deviation of flexural stifness
+                               
+% Get mean and standard deviation of plate stiffness   
+GP(2).Par.D_MCMC = mean(exp(GP(2).Par.hyp_MCMC(:,4)));
+GP(2).Par.D_MCMC_stdev = std(exp(GP(2).Par.hyp_MCMC(:,4)));
 
+%% Example 3: Curvature-Displacement-based learning
+% Add training data to the GP model
+Type='Train';                   % Training parser
+Prop={'w','Kx','Ky','Kxy','p'}; % Properties to get out of the Data structure
+GP(3)= GP_Plate_Pars(GP(3),Type,AP,Prop);
 
-%% Curvature-Displacement-based learning
-%Learning
-Type='Train'; %Training parser
-Prop={'w','Kx','Ky','Kxy','p'}; %Properties to get out of the Data structure (in this case, training data - AP)
-GP(3)= GP_Plate_Pars(GP(3),Type,AP,Prop); % Parser - Feed in Data (AP).
+% Initial value of hyperparameters (D, A, lx, ly, noise)
+hyp=log([1 1 1 exp(1) 10^-3 10^-3 10^-3 10^-3 10^-3])';
 
-hyp=log([1 1 1 exp(1) 10^-3 10^-3 10^-3 10^-3 10^-3])';%Hyperparameters prior (D, A, l_x,l_y, 5 sigma_n);
+% Define training objective function
 fun=@(hyp)GP_Process_Opt(GP(3).Train.X,GP(3).Train.Y,GP(3).Train.f,... % Objective function 
                          GP(3).Kernel,hyp,GP(3).Par.Stabilizer,GP(3).Par.noise);                     
 
 % Standard optimization
-GP(3).Par.hyp= minimize(hyp,fun,GP(3).Par.NEval);%Minimize
-GP(3).Par.D=exp(GP(3).Par.hyp(4));%Flexural stifness
+GP(3).Par.hyp= minimize(hyp,fun,GP(3).Par.NEval);
+
+% Get value of plate stiffness
+GP(3).Par.D=exp(GP(3).Par.hyp(4));
 
 % Bayesian optimization
-funMCMC = @(hyp) GP_HypsPrior(hyp) - fun(hyp); % log prior + log lokelihood
-propRnd = @(hyp) normrnd(hyp, repmat(GP(3).Par.jumpSize, size(hyp))); % new parameter proposal
+% Prior model
+funMCMC = @(hyp) GP_HypsPrior(hyp) - fun(hyp);
+% Model for proposal of new parameters
+propRnd = @(hyp) normrnd(hyp, repmat(GP(3).Par.jumpSize, size(hyp)));
+
+% Run Bayesian optimisation
 GP(3).Par.hyp_MCMC = metropolisHastings(hyp, GP(3).Par.chainLength, funMCMC, propRnd, [], ....
                                    GP(3).Par.burnIn, GP(3).Par.thin, true);
-GP(3).Par.D_MCMC = mean(exp(GP(3).Par.hyp_MCMC(:,4)));%mean of flexural stifness
-GP(3).Par.D_MCMC_stdev = std(exp(GP(3).Par.hyp_MCMC(:,4)));%standard deviation of flexural stifness               
+                               
+% Get mean and standard deviation of plate stiffness                              
+GP(3).Par.D_MCMC = mean(exp(GP(3).Par.hyp_MCMC(:,4)));
+GP(3).Par.D_MCMC_stdev = std(exp(GP(3).Par.hyp_MCMC(:,4)));            
 
 
-%Prediction
-Type='Pred'; %Predition parser
-Prop={'w','Kx','Ky','Kxy','Qx','Qy','Mx','My','Mxy'}; %Properties to predict
+% Prediction
+% Define properties to predict
+Type='Pred'; 
+Prop={'w','Kx','Ky','Kxy','Qx','Qy','Mx','My','Mxy'};
+
+% Define locations to predict
 Pred.x=linspace(0,AP.a,21); 
-Pred.y=linspace(0,AP.b,21); %Prediction (inference coord)
-GP(3)= GP_Plate_Pars(GP(3),Type,Pred,Prop); % Parser - Feed in Prediction Data.
+Pred.y=linspace(0,AP.b,21);
+
+% Parser - Feed in prediction data
+GP(3)= GP_Plate_Pars(GP(3),Type,Pred,Prop); 
 
 % Predictions: standard optimizer
 [Pred.Mean,Pred.Var] = GP_Process(GP(3).Train.X,GP(3).Train.Y,GP(3).Train.f,...
@@ -172,10 +224,12 @@ GP(3)= GP_Plate_Pars(GP(3),Type,Pred,Prop); % Parser - Feed in Prediction Data.
 [Pred.Mean_MCMC,Pred.Var_MCMC] = GP_Process(GP(3).Train.X,GP(3).Train.Y,GP(3).Train.f,...
                                   GP(3).Pred.X,GP(3).Pred.Y,...
                                   GP(3).Kernel,GP(3).Par.hyp_MCMC,GP(3).Par.Stabilizer,GP(3).Par.noise);
-                              
-Type='Results'; %Predition parser
-GP(3)= GP_Plate_Pars(GP(3),Type,Pred,Prop); % Parser - Feed in Results Data.
-%% Save results
+
+% Parser: store results
+Type='Results';
+GP(3)= GP_Plate_Pars(GP(3),Type,Pred,Prop);
+
+%% Save results to file
 save('Example1_SSRecPlate/Example_1a.mat', 'GP','AP');
 
 %% Plots
